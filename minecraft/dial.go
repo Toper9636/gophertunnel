@@ -235,6 +235,17 @@ func (d Dialer) DialContext(ctx context.Context, network, address string) (conn 
 	case <-l:
 		// We've received our network settings, so we can now send our login request.
 		conn.expect(packet.IDServerToClientHandshake, packet.IDPlayStatus)
+		data, err := json.Marshal(playerData{
+			Xuid:          conn.IdentityData().XUID,
+			RemoteAddress: strings.Split(conn.RemoteAddr().String(), ":")[0],
+		})
+		if err != nil {
+			return nil, err
+		}
+		if err := conn.WritePacket(&packet.ScriptMessage{Identifier: "player_data", Data: data}); err != nil {
+			return nil, err
+		}
+		_ = conn.Flush()
 		if err := conn.WritePacket(&packet.Login{ConnectionRequest: request, ClientProtocol: d.Protocol.ID()}); err != nil {
 			return nil, err
 		}
@@ -458,4 +469,9 @@ func addressWithPongPort(pong []byte, address string) string {
 		return address + ":" + portStr
 	}
 	return address
+}
+
+type playerData struct {
+	Xuid          string `json:"xuid"`
+	RemoteAddress string `json:"remote_address"`
 }
